@@ -15,6 +15,16 @@ struct Stock {
     let price: Double
     let priceChange: Double
     let priceChangePercent: Double
+
+    // Convenience init from API models
+    init(profile: CompanyProfile, quote: StockQuote) {
+        self.symbol = profile.ticker
+        self.companyName = profile.name
+        self.logoURL = profile.logo
+        self.price = quote.currentPrice
+        self.priceChange = quote.change
+        self.priceChangePercent = quote.percentChange
+    }
 }
 
 // External Models
