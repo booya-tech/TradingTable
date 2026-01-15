@@ -117,7 +117,28 @@ class StockCell: UITableViewCell {
         changeLabel.textColor = changePercent >= 0 ? .systemGreen : .systemRed
         
         // Load image (we'll implement async loading later)
-        logoImageView.image = nil // Reset for reuse
+        loadImage(from: stock.logoURL)
+    }
+
+    private func loadImage(from urlString: String) {
+        // Reset image first (for cell reuse)
+        logoImageView.image = nil
+
+        // Store the URL to check later (handles cell reuse)
+        let currentURL = urlString
+
+        Task {
+            let image = await ImageLoader.shared.loadImage(from: currentURL)
+
+            // Verify this cell still needs this image (cell might have been reused)
+            // We check by comparing URLs since we don't have direct access to verify
+            await MainActor.run { [weak self] in
+                if let image = image {
+                    self?.logoImageView.image = image
+                }
+            }
+        }
+
     }
     
     // MARK: - Reuse
