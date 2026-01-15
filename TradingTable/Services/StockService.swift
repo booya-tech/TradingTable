@@ -19,7 +19,7 @@ protocol StockServiceProtocol {
 }
 
 class StockService: StockServiceProtocol {
-    private let apiKey = "d5jpvr9r01qjaedr44l0d5jpvr9r01qjaedr44lg"
+    private let apiKey = Secrets.finnhubAPIKey
     private let baseURL = "https://finnhub.io/api/v1"
 
     // Fetch company profile for a symbol

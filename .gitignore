@@ -1,4 +1,12 @@
-
+# User state
 buildServer.json
-
 TradingTable.xcodeproj/project.xcworkspace/xcuserdata/boopannachai.xcuserdatad/UserInterfaceState.xcuserstate
+
+# Secrets - NEVER commit!
+Secrets.swift
+TradingTable/Secrets.swift
+
+# Xcode
+*.xcuserstate
+xcuserdata/
+DerivedData/
