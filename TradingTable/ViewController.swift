@@ -20,6 +20,12 @@ class ViewController: UIViewController {
         return table
     }()
 
+    private let loadingIndicator: UIActivityIndicatorView = {
+        let indicator = UIActivityIndicatorView(style: .medium)
+        indicator.hidesWhenStopped = true
+        return indicator
+    }()
+
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -49,25 +55,52 @@ class ViewController: UIViewController {
 
         tableView.dataSource = self
         tableView.delegate = self
+        tableView.prefetchDataSource = self // enable prefetching
         tableView.register(StockCell.self, forCellReuseIdentifier: StockCell.identifier)
     }
 
     // MARK: - Bind ViewModel
     private func bindViewModel() {
-        viewModel.onStocksUpdated = { [weak self] in
-            self?.tableView.reloadData()
+        viewModel.onStocksUpdated = { [weak self] addedCount in
+            guard let self = self else { return }
+
+            if addedCount > 0 {
+                // Calculate index paths for new rows
+                let startIndex = self.viewModel.numberOfRows - addedCount
+                let endIndex = self.viewModel.numberOfRows
+                let indexPaths = (startIndex..<endIndex).map { IndexPath(row: $0, section: 0) }
+
+                // Insert only new rows (preserves scroll position!)
+                self.tableView.insertRows(at: indexPaths, with: .automatic)
+            } else {
+                // Initial load or reset - use reloadData
+                self.tableView.reloadData()
+            }
+
+            self.updateTitle()
         }
 
         viewModel.onError = { [weak self] error in
             self?.showError(error)
         }
-    }
 
+        viewModel.onLoadingStateChanged = { [weak self] isLoading in
+            if isLoading {
+                self?.loadingIndicator.startAnimating()
+            } else {
+                self?.loadingIndicator.stopAnimating()
+            }
+        }
+    }
     // MARK: - Load Data
     private func fetchData() {
         Task {
-            await viewModel.loadStocks()
+            await viewModel.loadInitialStocks()
         }
+    }
+
+    private func updateTitle() {
+        title = "Stocks (\(viewModel.numberOfRows)/\(viewModel.totalAvailableStocks))"
     }
 
     // MARK: - Error Handling
@@ -109,5 +142,20 @@ extension ViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let stock = viewModel.stock(at: indexPath.row)
         print("Selected stock: \(stock.symbol)")
+    }
+}
+
+// MARK: - UITableViewDataSourcePrefetching
+extension ViewController: UITableViewDataSourcePrefetching {
+    func tableView(_ tableView: UITableView, prefetchRowsAt indexPaths: [IndexPath]) {
+        // Find the maximum row being prefetched
+        guard let maxIndex = indexPaths.map({ $0.row }).max() else { return }
+
+        // Check if we should load more
+        if viewModel.shouldLoadMore(currentIndex: maxIndex) {
+            Task {
+                await viewModel.loadNextPage()
+            }
+        }
     }
 }
