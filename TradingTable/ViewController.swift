@@ -8,13 +8,106 @@
 import UIKit
 
 class ViewController: UIViewController {
+    // MARK: - Properties
+    private let viewModel = StockListViewModel()
 
+    private let tableView: UITableView = {
+        let table = UITableView()
+        table.translatesAutoresizingMaskIntoConstraints = false
+        table.rowHeight = 70
+        table.separatorStyle = .singleLine
+        
+        return table
+    }()
+
+    // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        view.backgroundColor = .red
+        setupUI()
+        setupTableView()
+        bindViewModel()
+        fetchData()
     }
 
+    // MARK: - Setup UI
+    private func setupUI() {
+        title = "Stocks"
+        view.backgroundColor = .systemBackground
+    }
 
+    // MARK: - Setup TableView
+    private func setupTableView() {
+        view.addSubview(tableView)
+
+        NSLayoutConstraint.activate([
+            tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+
+        tableView.dataSource = self
+        tableView.delegate = self
+        tableView.register(StockCell.self, forCellReuseIdentifier: StockCell.identifier)
+    }
+
+    // MARK: - Bind ViewModel
+    private func bindViewModel() {
+        viewModel.onStocksUpdated = { [weak self] in
+            self?.tableView.reloadData()
+        }
+
+        viewModel.onError = { [weak self] error in
+            self?.showError(error)
+        }
+    }
+
+    // MARK: - Load Data
+    private func fetchData() {
+        Task {
+            await viewModel.loadStocks()
+        }
+    }
+
+    // MARK: - Error Handling
+    private func showError(_ error: Error) {
+        let alert = UIAlertController(
+            title: "Error",
+            message: error.localizedDescription, preferredStyle: .alert
+        )
+        alert.addAction(
+            UIAlertAction(
+                title: "OK",
+                style: .default
+            )
+        )
+        present(alert, animated: true)
+    }
 }
 
+// MARK: - UITableViewDataSource
+extension ViewController: UITableViewDataSource {
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return viewModel.numberOfRows
+    }
+
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        guard let cell = tableView.dequeueReusableCell(withIdentifier: StockCell.identifier, for: indexPath) as? StockCell else {
+            return UITableViewCell()
+        }
+
+        let stock = viewModel.stock(at: indexPath.row)
+        cell.configure(with: stock)
+
+        return cell
+    }
+}
+
+// MARK: - UITableViewDelegate
+extension ViewController: UITableViewDelegate {
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        let stock = viewModel.stock(at: indexPath.row)
+        print("Selected stock: \(stock.symbol)")
+    }
+}
